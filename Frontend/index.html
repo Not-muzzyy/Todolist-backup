@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>To-Do Assistant — Chat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1> To-Do Assistant</h1>
+        <p>Chat your way to productivity</p>
+      </div>
+
+      <div class="task-section glass">
+        <h2>Your Tasks</h2>
+        <ul id="taskList"></ul>
+      </div>
+
+      <div class="tips-section glass">
+        <h2>Quick Tip</h2>
+        <div id="tipBox">Type <code>tip</code> in chat to get advice.</div>
+      </div>
+    </aside>
+
+    <main class="chat-section glass">
+      <div id="chatWindow" class="chat-window"></div>
+
+      <div class="input-bar">
+        <input id="chatInput" placeholder='how can i help you today?' autofocus />
+        <button id="sendBtn">➤</button>
+      </div>
+    </main>
+  </div>
+
+  <audio id="ding" preload="auto"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
