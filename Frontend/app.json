@@ -1,0 +1,106 @@
+// app.js - polished frontend for demo
+const chatWindow = document.getElementById("chatWindow");
+const chatInput = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const taskList = document.getElementById("taskList");
+const tipBox = document.getElementById("tipBox");
+const ding = document.getElementById("ding");
+
+// small beep using Web Audio (no external file)
+function playBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.value = 0.06;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(()=>{ o.stop(); ctx.close(); }, 220);
+  }catch(e){}
+}
+
+function addMsg(text, who="bot"){
+  const d = document.createElement("div");
+  d.className = "msg " + (who==="bot" ? "bot" : "user");
+  d.innerText = text;
+  chatWindow.appendChild(d);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+async function postChat(text){
+  addMsg(text, "user");
+  chatInput.value = "";
+  const res = await fetch("/chat?msg=" + encodeURIComponent(text));
+  const j = await res.json();
+  addMsg(j.reply, "bot");
+  if(j.reply && j.reply.toLowerCase().includes("remind")){ /* small visual hint already */ }
+  refreshTasks();
+  if(j.reply && (j.reply.toLowerCase().includes("tip") || j.reply.startsWith("Pomodoro") || j.reply.includes("Pomodoro"))){
+    tipBox.innerText = j.reply;
+  }
+}
+
+// load tasks from server (read-only)
+async function refreshTasks(){
+  try{
+    const r = await fetch("/api/tasks"); const j = await r.json();
+    taskList.innerHTML = "";
+    j.tasks.forEach(t=>{
+      const li = document.createElement("li");
+      const left = document.createElement("div");
+      left.innerHTML = `<strong>${t.title}</strong><div class="muted">${t.due ? "Due: " + new Date(t.due).toLocaleString() : ""}</div>`;
+      const right = document.createElement("div");
+      const done = document.createElement("button");
+      done.className = "small-btn"; done.innerText = t.completed ? "Done" : "Complete";
+      done.onclick = async ()=> {
+        await fetch(`/chat?msg=` + encodeURIComponent("complete " + t.title));
+        refreshTasks();
+      };
+      const del = document.createElement("button");
+      del.className = "small-btn danger"; del.innerText = "Delete";
+      del.onclick = async ()=> {
+        await fetch(`/chat?msg=` + encodeURIComponent("delete " + t.title));
+        refreshTasks();
+      };
+      right.appendChild(done); right.appendChild(del);
+      li.appendChild(left); li.appendChild(right);
+      taskList.appendChild(li);
+    });
+  }catch(e){}
+}
+
+// Poll server for due reminders (fast for demo)
+async function pollReminders(){
+  try{
+    const r = await fetch("/api/due-reminders");
+    const j = await r.json();
+    if(j.reminders && j.reminders.length){
+      j.reminders.forEach(n=>{
+        // show chat popup
+        addMsg("ð " + n.title + (n.taskId ? " (task)" : ""), "bot");
+        // browser notification
+        if(window.Notification && Notification.permission === "granted"){
+          const note = new Notification("To-Do Assistant", { body: n.title });
+          note.onclick = ()=> window.focus();
+        }
+        playBeep();
+      });
+    }
+  }catch(e){}
+}
+
+// request permission for notifications
+if(window.Notification && Notification.permission !== "granted"){
+  Notification.requestPermission().then(()=>{ /* ignore result */ });
+}
+
+// event handlers
+sendBtn.onclick = ()=> { const v = chatInput.value.trim(); if(!v) return; postChat(v); };
+chatInput.addEventListener("keydown", e=>{ if(e.key === "Enter"){ sendBtn.click(); }});
+
+// initial messages + refresh
+addMsg("Hello â I'm your To-Do Assistant.", "bot");
+refreshTasks();
+setInterval(refreshTasks, 5000);
+setInterval(pollReminders, 4000); // 4s for quick demo
